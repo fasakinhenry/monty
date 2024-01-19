@@ -1,42 +1,86 @@
 #include "monty.h"
 
-int main(int argc, char *argv[])
+/**
+ * main - monty interperter
+ * @ac: the number of arguments
+ * @av: the arguments
+ * Return: void
+ */
+int main(int ac, char *av[])
 {
-    FILE *file;
-    char *line;
-    unsigned int line_number = 0;
-    int value;
+	stack_t *stack = NULL;
+	static char *string[1000] = {NULL};
+	int n = 0;
+	FILE *fd;
+	size_t bufsize = 1000;
 
-    if (argc != 2)
-    {
-        fprintf(stderr, "USAGE: monty file\n");
-        exit(EXIT_FAILURE);
-    }
+	if (ac != 2)
+	{
+		fprintf(stderr, "USAGE: monty file\n");
+		exit(EXIT_FAILURE);
+	}
+	fd = fopen(av[1], "r");
+	if (fd == NULL)
+	{
+		fprintf(stderr, "Error: Can't open file %s\n", av[1]);
+		exit(EXIT_FAILURE);
+	}
 
-    file = fopen(argv[1], "r");
-    if (file == NULL)
-    {
-        fprintf(stderr, "Error: Can't open file %s\n", argv[1]);
-        exit(EXIT_FAILURE);
-    }
 
-    while ((line = custom_getline(file)) != NULL)
-    {
-        line_number++;
-        /* Parse the opcode and arguments from the line and execute the corresponding function */
-        /* You need to implement the parsing and execution logic here */
+	for (n = 0; getline(&(string[n]), &bufsize, fd) > 0; n++)
+		;
+	execute(string, stack);
+	free_list(string);
+	fclose(fd);
+	return (0);
+}
 
-        /* For demonstration purposes, assume 'push' opcode with an integer argument */
-        if (sscanf(line, "push %d", &value) == 1)
-            push(value);
-        else if (strcmp(line, "pall") == 0)
-            pall(line_number);
+/**
+ * execute - executes opcodes
+ * @string: contents of file
+ * @stack: the list
+ * Return: void
+ */
 
-        free(line);
-    }
+void execute(char *string[], stack_t *stack)
+{
+	int ln, n, i;
 
-    /* Clean up and close the file */
-    fclose(file);
+	instruction_t st[] = {
+		{"pall", pall},
+		{"pint", pint},
+		{"add", add},
+		{"swap", swap},
+		{"pop", pop},
+		{"null", NULL}
+	};
 
-    return EXIT_SUCCESS;
+	for (ln = 1, n = 0; string[n + 1]; n++, ln++)
+	{
+		if (_strcmp("push", string[n]))
+			push(&stack, ln, pushint(string[n], ln));
+		else if (_strcmp("nop", string[n]))
+			;
+		else
+		{
+			i = 0;
+			while (!_strcmp(st[i].opcode, "null"))
+			{
+				if (_strcmp(st[i].opcode, string[n]))
+				{
+					st[i].f(&stack, ln);
+					break;
+				}
+				i++;
+			}
+			if (_strcmp(st[i].opcode, "null") && !_strcmp(string[n], "\n"))
+			{
+				fprintf(stderr, "L%u: unknown instruction %s", ln, string[n]);
+				if (!nlfind(string[n]))
+					fprintf(stderr, "\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+	free_stack(stack);
 }
